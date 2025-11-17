@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Writer {
+  id       String @id
+  password String
+}
+
+model Book {
+  id            String   @id @default(uuid())
+  title         String
+  author        String
+  publishedDate DateTime @default(now())
+  genre         Genre
+  synopsis      String
+  documentName  String?
+  documentType  String?
+  documentUrl   String?
+}
+
+enum Genre {
+  FICTION
+  NON_FICTION
+  SCIFI
+  FANTASY
+  MYSTERY
+  ROMANCE
+  HORROR
+  HISTORY
+}
