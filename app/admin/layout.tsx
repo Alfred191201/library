@@ -1,5 +1,6 @@
+// app/admin/layout.tsx
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth"; // This should now work
 
 export default async function AdminLayout({
   children,
@@ -8,8 +9,9 @@ export default async function AdminLayout({
 }) {
   const currentUser = await getCurrentUser();
 
-  // Check if user is admin - this will protect ALL admin routes
-  if (!currentUser || currentUser.id !== 'admin') {
+  // Logic: If no user, OR user role is not admin -> redirect
+  // It is safer to check .role instead of .id, but .id works if your admin ID is literally "admin"
+  if (!currentUser || currentUser.role !== 'admin') { 
     redirect('/');
   }
 

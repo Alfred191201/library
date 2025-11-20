@@ -52,8 +52,8 @@ export const createBook = async (prevState: any, formData: FormData) => {
     return { message: "Failed to create book" };
   }
 
-  revalidatePath("/books");
-  redirect("/books");
+  revalidatePath("/user");
+  redirect("/user");
 };
 
 export const updateBook = async (

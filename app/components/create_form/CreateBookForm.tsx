@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState } from "react-dom";
+import { useActionState, useState } from "react";
 import { createBook } from "@/lib/action/bookAction";
 import { SubmitButton, BackButton } from "../Buttons";
 
@@ -10,7 +10,65 @@ interface CreateBookFormProps {
 }
 
 export default function CreateBookForm({ currentUserId }: CreateBookFormProps) {
-  const [state, formAction] = useFormState(createBook, null);
+  const [state, formAction] = useActionState(createBook, null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (file.type !== 'application/pdf') {
+        alert('Please upload a PDF file');
+        e.target.value = '';
+        return;
+      }
+      // Validate file size (e.g., 10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size should be less than 10MB');
+        e.target.value = '';
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a PDF file first');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+      setUploadedUrl(data.secure_url);
+      alert('PDF uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload PDF. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto mt-10">
@@ -98,17 +156,49 @@ export default function CreateBookForm({ currentUserId }: CreateBookFormProps) {
           </div>
         </div>
 
-        {/* Document URL (Optional) */}
+        {/* PDF Upload Section */}
         <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="documentUrl">
-            Document URL (Optional)
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Upload Book PDF
           </label>
-          <input
-            id="documentUrl"
-            name="documentUrl"
-            type="text"
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          />
+          
+          <div className="flex items-center gap-3 mb-3">
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handleFileChange}
+              className="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100
+                cursor-pointer"
+            />
+            
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={!selectedFile || uploading}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+            >
+              {uploading ? 'Uploading...' : 'Upload'}
+            </button>
+          </div>
+
+          {uploadedUrl && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded">
+              <p className="text-green-700 text-sm font-medium mb-1">✓ PDF uploaded successfully!</p>
+              <p className="text-xs text-gray-600 break-all">{uploadedUrl}</p>
+            </div>
+          )}
+
+          {/* Hidden input to send the URL to the server */}
+          <input type="hidden" name="documentUrl" value={uploadedUrl} />
+          
+          <p className="text-xs text-gray-500 mt-2">
+            Maximum file size: 10MB. Only PDF files are accepted.
+          </p>
         </div>
 
         {state?.message && (

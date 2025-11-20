@@ -21,3 +21,20 @@ export async function getBookById (id: string) {
         throw error;
     }
 }
+
+export async function getBooksByWriterId(writerId: string) {
+  try {
+    const books = await prisma.book.findMany({
+      where: {
+        writerId: writerId,
+      },
+      orderBy: {
+        publishedDate: 'desc', // Newest first
+      },
+    });
+    return books;
+  } catch (error) {
+    console.error("Error fetching user books:", error);
+    return [];
+  }
+}
