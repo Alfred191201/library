@@ -18,6 +18,8 @@ export default function LoginPage() {
     setLoading(true);
     
     // 1. Attempt Sign In
+    // redirect: false prevents NextAuth from automatically redirecting, 
+    // allowing us to handle the routing logic explicitly below.
     const result = await signIn("credentials", {
       id,
       password,
@@ -28,17 +30,16 @@ export default function LoginPage() {
       setError("Invalid ID or Password");
       setLoading(false);
     } else {
-      // 2. Successful Login - Check Role Logic
-      // Note: Ideally, we check the session role, but checking the input ID 
-      // works for the immediate client-side redirect before the session updates.
+      // 2. Successful Login
+      // We check the ID directly for an immediate client-side redirect.
+      // In a production app with many roles, you might fetch the session here instead.
       if (id === "admin") {
         router.push("/admin");
       } else {
-        // CHANGED: Redirects to the specific user dashboard
-        router.push("/user");
+        router.push("/user"); 
       }
       
-      router.refresh();
+      router.refresh(); 
     }
   };
 

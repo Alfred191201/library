@@ -11,27 +11,28 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // 1. Validate Input
+        // 1. Validate Input exists
         if (!credentials?.id || !credentials?.password) {
           return null;
         }
 
-        // 2. Optional: Hardcoded Admin Bypass
-        // Useful if you haven't created the "admin" user in the DB yet
-        if (credentials.id === "admin" && credentials.password === "admin") { 
-           return {
-             id: "admin",
-             name: "Administrator",
-             role: "admin"
-           };
+        const inputId = credentials.id;
+        const inputPassword = credentials.password;
+
+        // 2. Logic: Is this the Hardcoded Admin?
+        // (Useful if you haven't created the admin in DB yet)
+        if (inputId === "admin" && inputPassword === "admin") {
+          return {
+            id: "admin",
+            name: "Administrator",
+            role: "admin", // <--- VIRTUAL ROLE ASSIGNMENT
+          };
         }
 
-        // 3. Database Check for Writers
+        // 3. Logic: Check Database for Writer
         try {
           const writer = await prisma.writer.findUnique({
-            where: {
-              id: credentials.id,
-            },
+            where: { id: inputId },
           });
 
           // User not found
@@ -40,16 +41,21 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Password mismatch
-          // (In production, use bcrypt.compare(credentials.password, writer.password))
-          if (writer.password !== credentials.password) {
+          if (writer.password !== inputPassword) {
             return null;
           }
 
-          // Login Successful
+          // 4. Determine Role Logic
+          // Since 'role' isn't in the DB, we calculate it here.
+          // If the database ID is strictly "admin", they get admin powers.
+          // Everyone else gets "writer".
+          const role = writer.id === "admin" ? "admin" : "writer";
+
+          // 5. Return the User Object with the Role attached
           return {
             id: writer.id,
-            name: writer.id, // Used 'id' as name since Writer model has no 'name' field
-            role: "writer", 
+            name: writer.id, // Writers don't have names, so we use ID
+            role: role,      // <--- VIRTUAL ROLE ATTACHED HERE
           };
 
         } catch (error) {
@@ -60,6 +66,8 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
+    // This callback copies the role from the 'user' object (returned above)
+    // into the JWT token so it persists.
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -67,6 +75,8 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
+    // This callback copies the role from the JWT token
+    // into the session object so you can use `session.user.role` in React.
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;

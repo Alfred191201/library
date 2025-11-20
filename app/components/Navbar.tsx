@@ -5,19 +5,29 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 
 const Navbar = () => {
-  // 1. Use session to check role
   const { data: session } = useSession();
   
+  // States
   const [isGenreOpen, setIsGenreOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New State
   const [scrolled, setScrolled] = useState(false);
 
-  // 2. Check if user is admin
   const isAdmin = session?.user?.role === "admin";
 
+  // Handle Scroll
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Close mobile menu when window resizes to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) setIsMobileMenuOpen(false);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const genres = [
@@ -32,28 +42,27 @@ const Navbar = () => {
   return (
     <nav 
       className={`fixed top-0 w-full z-50 transition-all duration-300 border-b border-transparent ${
-        scrolled 
-          ? "bg-white/80 backdrop-blur-md border-gray-200 shadow-sm" 
+        scrolled || isMobileMenuOpen
+          ? "bg-white/95 backdrop-blur-md border-gray-200 shadow-sm" 
           : "bg-white/60 backdrop-blur-sm"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
-          {/* --- Left Side Container --- */}
+          {/* --- Left Side (Logo + Desktop Nav) --- */}
           <div className="flex items-center gap-8">
-            
-            {/* 1. Logo */}
-            <Link href="/" className="group flex items-center gap-2">
+            {/* Logo */}
+            <Link href="/" className="group flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
                <span className="text-2xl font-extrabold tracking-tighter bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
                  MyLibrary
                </span>
             </Link>
 
-            {/* 2. Navigation Links */}
+            {/* Desktop Navigation Links */}
             <div className="hidden md:flex gap-1 text-sm font-medium items-center text-gray-600">
               
-              {/* --- ADMIN LINK (Now the first item/Most Left) --- */}
+              {/* ADMIN LINK */}
               {isAdmin && (
                 <Link 
                   href="/admin" 
@@ -66,11 +75,10 @@ const Navbar = () => {
                 </Link>
               )}
 
-              {/* Standard Links */}
               <NavLink href="/">Home</NavLink>
               <NavLink href="/authors">Authors</NavLink>
 
-              {/* Genre Dropdown */}
+              {/* Desktop Genre Dropdown */}
               <div className="relative group">
                 <button
                   onClick={() => setIsGenreOpen(!isGenreOpen)}
@@ -83,13 +91,12 @@ const Navbar = () => {
                   </svg>
                 </button>
 
-                {/* Dropdown Content */}
                 <div 
                   className={`absolute left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl ring-1 ring-black ring-opacity-5 overflow-hidden transform transition-all duration-200 origin-top-left ${
                     isGenreOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
                   }`}
                 >
-                  <div className="py-2">
+                  <div className="py-2 max-h-96 overflow-y-auto">
                     {genres.map((genre) => (
                       <Link
                         key={genre}
@@ -105,9 +112,11 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* --- Right Side (Search + Profile) --- */}
+          {/* --- Right Side (Search + Profile + Mobile Toggle) --- */}
           <div className="flex items-center gap-4">
-            <form action="/search" className="relative hidden sm:block group">
+            
+            {/* Desktop Search */}
+            <form action="/search" className="relative hidden md:block group">
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <svg className="w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -121,52 +130,165 @@ const Navbar = () => {
               />
             </form>
 
-            <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+            <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
 
-            {/* Auth Section */}
-            {session ? (
-              <div className="flex items-center gap-3">
-                <div className="hidden lg:flex flex-col items-end">
-                  <span className="text-xs font-semibold text-gray-700 leading-none">{session.user?.name}</span>
-                  <span className="text-[10px] text-gray-400 leading-none mt-1 capitalize">
-                    {session.user.role}
-                  </span>
+            {/* Desktop Auth Section */}
+            <div className="hidden md:flex items-center">
+                {session ? (
+                <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-end">
+                        <span className="text-xs font-semibold text-gray-700 leading-none">{session.user?.name}</span>
+                        <span className="text-[10px] text-gray-400 leading-none mt-1 capitalize">
+                            {session.user.role}
+                        </span>
+                    </div>
+                    <button 
+                        onClick={() => signOut()} 
+                        className="p-2 rounded-full text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all"
+                        title="Sign Out"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                        </svg>
+                    </button>
                 </div>
-                
-                <button 
-                  onClick={() => signOut()} 
-                  className="p-2 rounded-full text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all"
-                  title="Sign Out"
+                ) : (
+                <Link 
+                    href="/login" 
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-all hover:shadow-lg hover:shadow-gray-900/20"
                 >
-                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <Link 
-                href="/login" 
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-all hover:shadow-lg hover:shadow-gray-900/20"
-              >
-                <span>Sign In</span>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                </svg>
-              </Link>
-            )}
-          </div>
+                    <span>Sign In</span>
+                </Link>
+                )}
+            </div>
 
+            {/* Mobile Menu Button */}
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100 focus:outline-none"
+            >
+              {isMobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* --- Mobile Menu Dropdown --- */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white border-t border-gray-100 shadow-lg max-h-[90vh] overflow-y-auto">
+          <div className="px-4 pt-4 pb-6 space-y-3">
+            
+            {/* Mobile Search */}
+            <form action="/search" className="relative mb-6">
+               <input
+                type="text"
+                name="q"
+                placeholder="Search books..."
+                className="w-full pl-4 pr-4 py-3 bg-gray-50 text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 border border-gray-200"
+              />
+            </form>
+
+            {/* Mobile Links */}
+            <div className="flex flex-col space-y-2">
+              {isAdmin && (
+                 <Link 
+                 href="/admin" 
+                 onClick={() => setIsMobileMenuOpen(false)}
+                 className="px-4 py-3 rounded-xl bg-red-50 text-red-600 font-semibold flex items-center gap-2"
+               >
+                 Admin Dashboard
+               </Link>
+              )}
+
+              <MobileNavLink href="/" onClick={() => setIsMobileMenuOpen(false)}>Home</MobileNavLink>
+              <MobileNavLink href="/authors" onClick={() => setIsMobileMenuOpen(false)}>Authors</MobileNavLink>
+
+              {/* Mobile Genre Accordion */}
+              <div className="border-t border-gray-100 pt-2 mt-2">
+                <button 
+                  onClick={() => setIsGenreOpen(!isGenreOpen)}
+                  className="flex items-center justify-between w-full px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-xl"
+                >
+                  <span>Browse Genres</span>
+                  <svg className={`w-4 h-4 transition-transform ${isGenreOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {isGenreOpen && (
+                  <div className="pl-4 space-y-1 mt-1">
+                    {genres.map((genre) => (
+                      <Link
+                        key={genre}
+                        href={`/genre/${genre}`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-500 hover:text-blue-600 border-l-2 border-transparent hover:border-blue-600"
+                      >
+                        {formatGenre(genre)}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile Auth Section */}
+            <div className="border-t border-gray-100 pt-4 mt-4">
+              {session ? (
+                <div className="flex items-center justify-between px-4">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-gray-900">{session.user?.name}</span>
+                    <span className="text-xs text-gray-500 capitalize">{session.user.role}</span>
+                  </div>
+                  <button 
+                    onClick={() => signOut()}
+                    className="px-4 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <Link 
+                  href="/login" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block w-full text-center px-4 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800"
+                >
+                  Sign In
+                </Link>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
     </nav>
   );
 };
 
-// Helper Component for standard links
+// Helper Component for Desktop links
 const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <Link 
     href={href} 
     className="px-3 py-2 rounded-full hover:bg-gray-100 hover:text-blue-600 transition-all duration-200"
+  >
+    {children}
+  </Link>
+);
+
+// Helper Component for Mobile links
+const MobileNavLink = ({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) => (
+  <Link 
+    href={href} 
+    onClick={onClick}
+    className="block px-4 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
   >
     {children}
   </Link>
