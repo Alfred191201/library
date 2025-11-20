@@ -45,10 +45,9 @@ export default async function UserDashboard() {
         </div>
 
         {/* --- Stats Grid --- */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-10">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 mb-10">
           <StatCard title="Published Books" value={books.length.toString()} icon="book" />
           <StatCard title="Total Reads" value="-" icon="eye" />
-          <StatCard title="Followers" value="-" icon="users" />
         </div>
 
         {/* --- Main Content Area --- */}
