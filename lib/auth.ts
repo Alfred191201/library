@@ -1,6 +1,6 @@
-// lib/auth.ts
-import { NextAuthOptions, getServerSession } from "next-auth"; // <--- Add getServerSession here
+import { NextAuthOptions, getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,16 +11,51 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (credentials?.id && credentials?.password) {
-          const user = {
-            id: credentials.id,
-            name: credentials.id,
-            role: credentials.id === "admin" ? "admin" : "writer"
-          };
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return user as any;
+        // 1. Validate Input
+        if (!credentials?.id || !credentials?.password) {
+          return null;
         }
-        return null;
+
+        // 2. Optional: Hardcoded Admin Bypass
+        // Useful if you haven't created the "admin" user in the DB yet
+        if (credentials.id === "admin" && credentials.password === "admin") { 
+           return {
+             id: "admin",
+             name: "Administrator",
+             role: "admin"
+           };
+        }
+
+        // 3. Database Check for Writers
+        try {
+          const writer = await prisma.writer.findUnique({
+            where: {
+              id: credentials.id,
+            },
+          });
+
+          // User not found
+          if (!writer) {
+            return null;
+          }
+
+          // Password mismatch
+          // (In production, use bcrypt.compare(credentials.password, writer.password))
+          if (writer.password !== credentials.password) {
+            return null;
+          }
+
+          // Login Successful
+          return {
+            id: writer.id,
+            name: writer.id, // Used 'id' as name since Writer model has no 'name' field
+            role: "writer", 
+          };
+
+        } catch (error) {
+          console.error("Login error:", error);
+          return null;
+        }
       }
     })
   ],
@@ -42,10 +77,13 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/login",
-  }
+  },
+  session: {
+    strategy: "jwt",
+  },
+  secret: process.env.NEXTAUTH_SECRET, 
 };
 
-// --- ADD THIS FUNCTION ---
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions);
   return session?.user;
